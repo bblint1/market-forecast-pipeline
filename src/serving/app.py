@@ -1,20 +1,33 @@
 import os
+import sys
 from pathlib import Path
 
 import pandas as pd
 import xgboost as xgb
 from fastapi import FastAPI, HTTPException
 
-from src.serving.schemas import MarketFeaturesRequest, PredictionResponse
-
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.append(str(BASE_DIR))
+
 MODEL_PATH = BASE_DIR / "models" / "xgboost_model.json"
 FEATURES_DATA_DIR = BASE_DIR / "data" / "features"
+
+from contextlib import asynccontextmanager  # noqa: E402
+
+from src.serving.schemas import MarketFeaturesRequest, PredictionResponse  # noqa: E402
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    load_or_train_model()
+    yield
+
 
 app = FastAPI(
     title="Crypto & Stock Volatility Forecast API",
     description="Serving endpoint predicting 24-hour Bitcoin return based on market signals.",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 model = None
@@ -53,11 +66,6 @@ def load_or_train_model():
                 MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
                 model.save_model(str(MODEL_PATH))
                 return
-
-
-@app.on_event("startup")
-def startup_event():
-    load_or_train_model()
 
 
 @app.get("/health")

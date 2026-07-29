@@ -283,11 +283,11 @@ In `src/features/build_features.py`:
 
 ### 6.1 FastAPI app (`src/serving/app.py`)
 
-| Method   | Path            | Description                           |
-| -------- | --------------- | ------------------------------------- |
-| `GET`  | `/health`     | Returns `{"status": "healthy"}`      |
+| Method   | Path            | Description                                         |
+| -------- | --------------- | --------------------------------------------------- |
+| `GET`  | `/health`     | Returns`{"status": "healthy"}`                    |
 | `POST` | `/predict`    | Accepts market features JSON → 24h return forecast |
-| `GET`  | `/model-info` | Model version, training date, metrics |
+| `GET`  | `/model-info` | Model version, training date, metrics               |
 
 **Instructions:**
 
