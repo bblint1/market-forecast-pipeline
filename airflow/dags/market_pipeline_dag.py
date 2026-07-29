@@ -1,11 +1,17 @@
-from datetime import datetime, timedelta, timezone
-
-from airflow.operators.python import PythonOperator
-
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow import DAG
-from src.data.clean import clean_market_data
-from src.data.ingest import fetch_crypto_data, fetch_stock_data
-from src.features.build_features import build_market_features
+
+import sys
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.append(str(BASE_DIR))
+
+from src.data.clean import clean_market_data  # noqa: E402
+from src.data.ingest import fetch_crypto_data, fetch_stock_data  # noqa: E402
+from src.features.build_features import merge_market_features  # noqa: E402
 
 default_args = {
     "owner": "mlops_engineer",
@@ -20,7 +26,7 @@ with DAG(
     dag_id="crypto_stock_market_pipeline",
     default_args=default_args,
     description="End-to-End Market Data Ingestion, Cleaning, and Feature Engineering Pipeline",
-    schedule_interval="0 * * * *",
+    schedule="0 * * * *",
     start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
     catchup=False,
     tags=["mlops", "market_data", "crypto", "stocks"],
@@ -49,17 +55,9 @@ with DAG(
         op_kwargs={"file_type": "stocks"},
     )
 
-    feature_crypto = PythonOperator(
-        task_id="feature_engineering_crypto",
-        python_callable=build_market_features,
-        op_kwargs={"file_type": "crypto"},
+    merge_features = PythonOperator(
+        task_id="merge_market_features",
+        python_callable=merge_market_features,
     )
 
-    feature_stocks = PythonOperator(
-        task_id="feature_engineering_stocks",
-        python_callable=build_market_features,
-        op_kwargs={"file_type": "stocks"},
-    )
-
-    ingest_crypto >> clean_crypto >> feature_crypto
-    ingest_stocks >> clean_stocks >> feature_stocks
+    [ingest_crypto >> clean_crypto, ingest_stocks >> clean_stocks] >> merge_features

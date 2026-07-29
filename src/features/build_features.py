@@ -20,7 +20,7 @@ def calculate_rsi(series: pd.Series, period: int = 14) -> pd.Series:
     return rsi
 
 
-def build_market_features(file_type: str = "crypto") -> str:
+def build_market_features(file_type: str = "crypto") -> pd.DataFrame:
     date_str = pd.Timestamp.now().strftime("%Y%m%d")
     cleaned_path = PROCESSED_DATA_DIR / f"cleaned_{file_type}_{date_str}.parquet"
 
@@ -49,13 +49,31 @@ def build_market_features(file_type: str = "crypto") -> str:
 
     df["target_next_24h_return"] = df["close"].pct_change(24).shift(-24)
 
-    df = df.dropna().reset_index(drop=True)
+    df = df.add_prefix(f"{file_type}_")
+    df = df.rename(columns={f"{file_type}_datetime": "datetime"})
+    return df
 
-    features_path = FEATURES_DATA_DIR / f"features_{file_type}_{date_str}.parquet"
-    df.to_parquet(features_path, index=False)
+
+def merge_market_features() -> str:
+    date_str = pd.Timestamp.now().strftime("%Y%m%d")
+    crypto_df = build_market_features("crypto")
+    stock_df = build_market_features("stocks")
+
+    # Normalize datetime timezone across both sources
+    crypto_df["datetime"] = pd.to_datetime(crypto_df["datetime"]).dt.tz_localize(None)
+    stock_df["datetime"] = pd.to_datetime(stock_df["datetime"]).dt.tz_localize(None)
+
+    crypto_df = crypto_df.sort_values("datetime")
+    stock_df = stock_df.sort_values("datetime")
+
+    merged_df = pd.merge_asof(crypto_df, stock_df, on="datetime", direction="backward")
+
+    merged_df = merged_df.dropna().reset_index(drop=True)
+
+    features_path = FEATURES_DATA_DIR / f"features_{date_str}.parquet"
+    merged_df.to_parquet(features_path, index=False)
     return str(features_path)
 
 
 if __name__ == "__main__":
-    build_market_features("crypto")
-    build_market_features("stocks")
+    merge_market_features()
