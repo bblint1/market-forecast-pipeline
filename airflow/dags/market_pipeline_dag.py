@@ -2,13 +2,14 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from airflow.providers.standard.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator
 
 from airflow import DAG
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-if str(BASE_DIR) not in sys.path:
-    sys.path.append(str(BASE_DIR))
+AIRFLOW_ROOT = Path("/opt/airflow")
+for p in [str(AIRFLOW_ROOT), str(Path(__file__).resolve().parent.parent.parent)]:
+    if p not in sys.path:
+        sys.path.append(p)
 
 from src.data.clean import clean_market_data  # noqa: E402
 from src.data.ingest import fetch_crypto_data, fetch_stock_data  # noqa: E402
