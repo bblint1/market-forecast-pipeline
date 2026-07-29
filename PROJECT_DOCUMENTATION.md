@@ -285,29 +285,29 @@ In `src/features/build_features.py`:
 
 | Method   | Path            | Description                           |
 | -------- | --------------- | ------------------------------------- |
-| `GET`  | `/health`     | Returns`{"status": "healthy"}`      |
-| `POST` | `/predict`    | Accepts features JSON → 24h forecast |
+| `GET`  | `/health`     | Returns `{"status": "healthy"}`      |
+| `POST` | `/predict`    | Accepts market features JSON → 24h return forecast |
 | `GET`  | `/model-info` | Model version, training date, metrics |
 
 **Instructions:**
 
-1. On startup, load XGBoost model from `.json` file (exported from MLflow)
-2. Define Pydantic schemas for request/response
-3. `/predict` receives: `temperature`, `humidity`, `cloud_cover`, `hour`, `day_of_week`, etc.
-4. Returns: `{"predictions": [0.42, 0.38, ...], "unit": "kWh"}`
+1. On startup, load XGBoost model from local artifact or registered MLflow model
+2. Define Pydantic schemas for request/response (`src/serving/schemas.py`)
+3. `/predict` receives: `crypto_return_1h`, `crypto_return_24h`, `crypto_volatility_24h`, `crypto_rsi_14`, `stocks_return_1h`, `stocks_rsi_14`, etc.
+4. Returns: `{"forecast_24h_return": 0.0152, "signal": "BUY"}`
 
 ### 6.2 Dockerfile (`docker/Dockerfile`)
 
 1. Base: `python:3.11-slim`
-2. Copy only required files (`src/serving/`, model, requirements)
+2. Copy required files (`src/serving/`, `src/features/`, requirements)
 3. Expose port 8000
 4. CMD: `uvicorn src.serving.app:app --host 0.0.0.0 --port 8000`
 
 **Build & run:**
 
 ```bash
-docker build -t energy-forecast-api -f docker/Dockerfile .
-docker run -p 8000:8000 energy-forecast-api
+docker build -t market-forecast-api -f docker/Dockerfile .
+docker run -p 8000:8000 market-forecast-api
 ```
 
 ### 6.3 Docker Compose (`docker/docker-compose.yml`)
@@ -315,8 +315,7 @@ docker run -p 8000:8000 energy-forecast-api
 Services to include:
 
 - `api` — FastAPI serving container
-- `minio` — local S3 storage (optional)
-- `airflow` — reference to airflow compose (optional)
+- `airflow` — local data pipeline orchestrator
 
 ---
 
