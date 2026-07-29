@@ -3,8 +3,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install dependencies
-COPY pyproject.toml .
-RUN pip install --no-cache-dir fastapi uvicorn pydantic xgboost pandas numpy
+RUN pip install --no-cache-dir fastapi uvicorn pydantic xgboost pandas pyarrow scikit-learn numpy
 
 # Copy application source code
 COPY src/ src/
