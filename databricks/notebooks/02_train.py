@@ -4,13 +4,10 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import mlflow
 import mlflow.xgboost
+import optuna
 import pandas as pd
 import xgboost as xgb
-from sklearn.metrics import (
-    mean_absolute_error,
-    mean_absolute_percentage_error,
-    mean_squared_error,
-)
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 FEATURES_DATA_DIR = BASE_DIR / "data" / "features"
@@ -35,50 +32,78 @@ feature_cols = [c for c in df.columns if c not in drop_cols]
 X_train, y_train = train_df[feature_cols], train_df["crypto_target_next_24h_return"]
 X_test, y_test = test_df[feature_cols], test_df["crypto_target_next_24h_return"]
 
-# 1. Enable MLflow Autologging
-mlflow.xgboost.autolog()
 
-with mlflow.start_run(run_name="xgboost_crypto_return_forecast") as run:
-    model = xgb.XGBRegressor(
-        n_estimators=100,
-        learning_rate=0.05,
-        max_depth=5,
-        random_state=42,
-    )
-    model.fit(X_train, y_train)
+# 1. Define Optuna Objective Function
+def objective(trial):
+    params = {
+        "n_estimators": trial.suggest_int("n_estimators", 50, 300),
+        "max_depth": trial.suggest_int("max_depth", 3, 10),
+        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.2, log=True),
+        "subsample": trial.suggest_float("subsample", 0.6, 1.0),
+        "colsample_bytree": trial.suggest_float("colsample_bytree", 0.6, 1.0),
+        "random_state": 42,
+    }
 
-    predictions = model.predict(X_test)
+    with mlflow.start_run(nested=True):
+        model = xgb.XGBRegressor(**params)
+        model.fit(X_train, y_train)
 
-    # 2. Log extra metrics manually: RMSE, MAE, MAPE
-    rmse = mean_squared_error(y_test, predictions)
-    mae = mean_absolute_error(y_test, predictions)
-    mape = mean_absolute_percentage_error(y_test, predictions)
+        preds = model.predict(X_test)
+        val_rmse = mean_squared_error(y_test, preds)
 
-    mlflow.log_metric("test_rmse", rmse)
-    mlflow.log_metric("test_mae", mae)
-    mlflow.log_metric("test_mape", mape)
+        mlflow.log_params(params)
+        mlflow.log_metric("val_rmse", val_rmse)
 
-    # 3. Log feature importance as artifact (PNG plot)
-    plt.figure(figsize=(10, 6))
-    xgb.plot_importance(model, max_num_features=10)
-    plt.title("XGBoost Feature Importance")
-    plt.tight_layout()
-    plot_path = "feature_importance.png"
-    plt.savefig(plot_path)
-    plt.close()
+    return val_rmse
 
-    mlflow.log_artifact(plot_path)
-    if os.path.exists(plot_path):
-        os.remove(plot_path)
 
-    # 4. Register model in MLflow Registry
-    model_uri = f"runs:/{run.info.run_id}/model"
-    registered_model = mlflow.register_model(
-        model_uri=model_uri,
-        name="energy-forecast-xgboost",
-    )
+# 2. Run Optuna Study
+mlflow.set_experiment("xgboost_optuna_tuning")
 
-    print(
-        f"Model Registered: {registered_model.name}, Version: {registered_model.version}"
-    )
-    print(f"Metrics - RMSE: {rmse:.5f}, MAE: {mae:.5f}, MAPE: {mape:.5f}")
+with mlflow.start_run(run_name="optuna_parent_run"):
+    study = optuna.create_study(direction="minimize")
+    study.optimize(objective, n_trials=10)
+
+    best_params = study.best_params
+    print(f"Best Hyperparameters: {best_params}")
+
+    # 3. Train & Log Final Model with Best Hyperparameters
+    with mlflow.start_run(run_name="best_tuned_xgboost_model", nested=True) as best_run:
+        best_model = xgb.XGBRegressor(**best_params, random_state=42)
+        best_model.fit(X_train, y_train)
+
+        final_preds = best_model.predict(X_test)
+        final_rmse = mean_squared_error(y_test, final_preds)
+        final_mae = mean_absolute_error(y_test, final_preds)
+
+        mlflow.log_params(best_params)
+        mlflow.log_metric("final_test_rmse", final_rmse)
+        mlflow.log_metric("final_test_mae", final_mae)
+
+        # Log Model explicitly for Registry
+        mlflow.xgboost.log_model(best_model, artifact_path="model")
+
+        # 4. Feature Importance Artifact
+        plt.figure(figsize=(10, 6))
+        xgb.plot_importance(best_model, max_num_features=10)
+        plt.title("Best Model Feature Importance")
+        plt.tight_layout()
+        plot_path = "best_feature_importance.png"
+        plt.savefig(plot_path)
+        plt.close()
+
+        mlflow.log_artifact(plot_path)
+        if os.path.exists(plot_path):
+            os.remove(plot_path)
+
+        # 5. Register Best Model
+        model_uri = f"runs:/{best_run.info.run_id}/model"
+        registered_model = mlflow.register_model(
+            model_uri=model_uri,
+            name="energy-forecast-xgboost-optuna",
+        )
+
+        print(
+            f"Tuned Model Registered: {registered_model.name}, Version: {registered_model.version}"
+        )
+        print(f"Best Model Test RMSE: {final_rmse:.5f}, MAE: {final_mae:.5f}")
