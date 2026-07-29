@@ -1,0 +1,5 @@
+- [ ] Unit tests pass locally (`pytest tests/`)
+- [ ] Code adheres to style guide (`ruff check .`)
+- [ ] Code formatted (`black .`)
+- [ ] Docstrings provided for public functions
+- [ ] Sensitive keys/tokens excluded from commit

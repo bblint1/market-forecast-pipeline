@@ -10,9 +10,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
 
-from src.data.clean import clean_market_data  # noqa
-from src.data.ingest import fetch_crypto_data, fetch_stock_data  # noqa
-from src.features.build_features import merge_market_features  # noqa
+from src.data.clean import clean_market_data  # noqa: E402
+from src.data.ingest import fetch_crypto_data, fetch_stock_data  # noqa: E402
+from src.features.build_features import merge_market_features  # noqa: E402
 
 default_args = {
     "owner": "mlops_engineer",

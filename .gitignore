@@ -1,0 +1,35 @@
+# Python & Environment
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+*.env
+.agents
+
+# Data & Models
+data/raw/*.csv
+data/raw/*.parquet
+data/processed/*.parquet
+data/features/*.parquet
+models/*.json
+models/*.pkl
+models/*.joblib
+mlflow.db
+mlruns/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+
+# Pytest & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Airflow
+airflow/airflow.db
+airflow/logs/
