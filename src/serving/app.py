@@ -68,12 +68,26 @@ def load_or_train_model():
                 return
 
 
+from fastapi.responses import HTMLResponse  # noqa: E402
+
+
 @app.get("/health")
 def health_check():
     return {
         "status": "healthy",
         "model_loaded": model is not None,
     }
+
+
+@app.get("/drift-report", response_class=HTMLResponse)
+def drift_report():
+    report_file = BASE_DIR / "monitoring" / "reports" / "data_drift_report.html"
+    if not report_file.exists():
+        raise HTTPException(
+            status_code=440,
+            detail="Drift report has not been generated yet. Run pipeline first.",
+        )
+    return report_file.read_text(encoding="utf-8")
 
 
 @app.get("/model-info")

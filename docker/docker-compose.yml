@@ -19,6 +19,9 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+    volumes:
+      - ../monitoring:/app/monitoring
+      - ../data:/app/data
     ports:
       - "7000:7000"
     restart: always
