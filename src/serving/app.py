@@ -12,9 +12,9 @@ sys.path.append(str(BASE_DIR))
 MODEL_PATH = BASE_DIR / "models" / "xgboost_model.json"
 FEATURES_DATA_DIR = BASE_DIR / "data" / "features"
 
-from contextlib import asynccontextmanager  # noqa: E402
+from contextlib import asynccontextmanager  # noqa
 
-from src.serving.schemas import MarketFeaturesRequest, PredictionResponse  # noqa: E402
+from src.serving.schemas import MarketFeaturesRequest, PredictionResponse  # noqa
 
 
 @asynccontextmanager
