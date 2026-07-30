@@ -114,6 +114,12 @@ def predict(features: MarketFeaturesRequest):
     )
 
     if feature_names:
+        missing_cols = [c for c in feature_names if c not in features_dict]
+        if missing_cols:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Missing required feature columns in payload: {missing_cols}",
+            )
         input_df = pd.DataFrame([features_dict])[feature_names]
     else:
         input_df = pd.DataFrame([features_dict])
