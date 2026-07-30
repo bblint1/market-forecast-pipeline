@@ -41,19 +41,19 @@ def load_or_train_model():
         if files:
             df = pd.read_parquet(files[-1])
             target_cols = [c for c in df.columns if "target" in c]
-            if target_cols:
-                target_col = target_cols[0]
+            drop_cols = ["datetime"] + target_cols
+            target_col = target_cols[0] if target_cols else None
+            if target_col:
                 df = df.dropna(subset=[target_col])
-                drop_cols = ["datetime", target_col]
-            else:
-                drop_cols = ["datetime"]
-                target_col = None
 
             feature_names = [c for c in df.columns if c not in drop_cols]
 
             if MODEL_PATH.exists():
                 model = xgb.XGBRegressor()
                 model.load_model(str(MODEL_PATH))
+                booster_features = model.get_booster().feature_names
+                if booster_features:
+                    feature_names = booster_features
                 return
 
             if target_col:

@@ -26,7 +26,11 @@ split_idx = int(len(df) * 0.8)
 train_df = df.iloc[:split_idx]
 test_df = df.iloc[split_idx:]
 
-drop_cols = ["datetime", "crypto_target_next_24h_return"]
+drop_cols = [
+    "datetime",
+    "crypto_target_next_24h_return",
+    "stocks_target_next_24h_return",
+]
 feature_cols = [c for c in df.columns if c not in drop_cols]
 
 X_train, y_train = train_df[feature_cols], train_df["crypto_target_next_24h_return"]
@@ -96,7 +100,12 @@ with mlflow.start_run(run_name="optuna_parent_run"):
         if os.path.exists(plot_path):
             os.remove(plot_path)
 
-        # 5. Register Best Model
+        # 5. Save model locally for serving API
+        model_save_path = BASE_DIR / "models" / "xgboost_model.json"
+        model_save_path.parent.mkdir(parents=True, exist_ok=True)
+        best_model.save_model(str(model_save_path))
+
+        # 6. Register Best Model
         model_uri = f"runs:/{best_run.info.run_id}/model"
         registered_model = mlflow.register_model(
             model_uri=model_uri,
